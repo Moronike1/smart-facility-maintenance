@@ -16,6 +16,58 @@ import {
   CartesianGrid,
 } from "recharts";
 
+// Consistent, status-specific colours for dashboard charts.
+const workOrderColors: Record<string, string> = {
+  Assigned: "#3B82F6",
+  "In Progress": "#F59E0B",
+  Completed: "#22C55E",
+  Cancelled: "#EF4444",
+};
+
+const preventiveMaintenanceColors: Record<string, string> = {
+  Scheduled: "#3B82F6",
+  "In Progress": "#F59E0B",
+  Completed: "#22C55E",
+  Overdue: "#EF4444",
+  Cancelled: "#94A3B8",
+};
+
+const assetRiskColors: Record<string, string> = {
+  Low: "#22C55E",
+  Medium: "#F59E0B",
+  High: "#F97316",
+  Critical: "#EF4444",
+};
+
+const maintenanceRequestColors: Record<string, string> = {
+  Pending: "#F59E0B",
+  Approved: "#3B82F6",
+  Assigned: "#8B5CF6",
+  "In Progress": "#06B6D4",
+  Completed: "#22C55E",
+  Cancelled: "#EF4444",
+};
+
+const maintenanceCategoryColors: Record<string, string> = {
+  Electrical: "#3B82F6",
+  Plumbing: "#06B6D4",
+  HVAC: "#8B5CF6",
+  Structural: "#F97316",
+  Security: "#EF4444",
+  Cleaning: "#22C55E",
+  Equipment: "#EAB308",
+  Other: "#94A3B8",
+};
+
+const maintenanceCostColors: Record<string, string> = {
+  Labour: "#3B82F6",
+  Materials: "#22C55E",
+  Other: "#F59E0B",
+};
+
+
+
+
 const Dashboard = () => {
   const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -209,111 +261,10 @@ const Dashboard = () => {
   ].filter((item) => item.value > 0);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex">
-      {/* =========================================
-          SIDEBAR
-      ========================================== */}
-      <aside className="hidden lg:flex w-64 bg-slate-900 border-r border-slate-800 flex-col">
-        {/* Logo */}
-        <div className="p-6 border-b border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center font-bold text-slate-950">
-              SF
-            </div>
-
-            <div>
-              <h1 className="font-semibold text-white">
-                Smart Facility
-              </h1>
-
-              <p className="text-xs text-slate-500">
-                Maintenance System
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2">
-          <button className="w-full text-left px-4 py-3 rounded-xl bg-emerald-500/10 text-emerald-400 font-medium">
-            Dashboard
-          </button>
-
-          <button className="w-full text-left px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white">
-            Facilities
-          </button>
-
-          <button className="w-full text-left px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white">
-            Assets
-          </button>
-
-          <button className="w-full text-left px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white">
-            Maintenance Requests
-          </button>
-
-          <button className="w-full text-left px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white">
-            Work Orders
-          </button>
-
-          <button className="w-full text-left px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white">
-            Preventive Maintenance
-          </button>
-
-          <button className="w-full text-left px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white">
-            Reports
-          </button>
-        </nav>
-
-        {/* Logout */}
-        <div className="p-4 border-t border-slate-800">
-          <button
-            onClick={() => {
-              localStorage.removeItem("token");
-              localStorage.removeItem("user");
-              window.location.href = "/";
-            }}
-            className="w-full text-left px-4 py-3 rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-400"
-          >
-            Logout
-          </button>
-        </div>
-      </aside>
-
+    <div className="min-h-full bg-slate-950 text-white">
       {/* =========================================
           MAIN CONTENT
       ========================================== */}
-      <main className="flex-1 min-w-0">
-        {/* Header */}
-        <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
-          <div className="px-6 lg:px-8 py-5 flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">
-                Facility Management
-              </p>
-
-              <h2 className="text-2xl font-semibold text-white">
-                Dashboard
-              </h2>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="hidden sm:block text-right">
-                <p className="text-sm font-medium text-white">
-                  Facility Manager
-                </p>
-
-                <p className="text-xs text-slate-500">
-                  Operations Overview
-                </p>
-              </div>
-
-              <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-emerald-400 font-semibold">
-                FM
-              </div>
-            </div>
-          </div>
-        </header>
-
         {/* =========================================
             DASHBOARD CONTENT
         ========================================== */}
@@ -443,7 +394,10 @@ const Dashboard = () => {
                       label
                     >
                       {workOrderChartData.map((entry, index) => (
-                        <Cell key={`work-order-${index}`} />
+                        <Cell
+                          key={`work-order-${index}`}
+                          fill={workOrderColors[entry.name] || "#64748B"}
+                        />
                       ))}
                     </Pie>
 
@@ -482,7 +436,10 @@ const Dashboard = () => {
                     >
                       {preventiveMaintenanceChartData.map(
                         (entry, index) => (
-                          <Cell key={`preventive-${index}`} />
+                          <Cell
+                            key={`preventive-${index}`}
+                            fill={preventiveMaintenanceColors[entry.name] || "#64748B"}
+                          />
                         )
                       )}
                     </Pie>
@@ -524,7 +481,10 @@ const Dashboard = () => {
                     label
                   >
                     {assetRiskChartData.map((entry, index) => (
-                      <Cell key={`asset-risk-${index}`} />
+                      <Cell
+                        key={`asset-risk-${index}`}
+                        fill={assetRiskColors[entry.name] || "#64748B"}
+                      />
                     ))}
                   </Pie>
 
@@ -580,7 +540,14 @@ const Dashboard = () => {
                     dataKey="value"
                     name="Requests"
                     radius={[0, 6, 6, 0]}
-                  />
+                  >
+                    {maintenanceCategoryChartData.map((entry, index) => (
+                      <Cell
+                        key={`category-${index}`}
+                        fill={maintenanceCategoryColors[entry.name] || "#64748B"}
+                      />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -627,7 +594,14 @@ const Dashboard = () => {
                     dataKey="value"
                     name="Cost"
                     radius={[6, 6, 0, 0]}
-                  />
+                  >
+                    {maintenanceCostChartData.map((entry, index) => (
+                      <Cell
+                        key={`cost-${index}`}
+                        fill={maintenanceCostColors[entry.name] || "#64748B"}
+                      />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -743,7 +717,10 @@ const Dashboard = () => {
                   >
                     {maintenanceRequestChartData.map(
                       (entry, index) => (
-                        <Cell key={`maintenance-request-${index}`} />
+                        <Cell
+                          key={`maintenance-request-${index}`}
+                          fill={maintenanceRequestColors[entry.name] || "#64748B"}
+                        />
                       )
                     )}
                   </Pie>
@@ -756,7 +733,6 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-      </main>
     </div>
   );
 };

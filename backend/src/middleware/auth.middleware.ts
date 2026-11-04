@@ -35,8 +35,10 @@ export const authenticate = (
 
     next();
   } catch (error) {
-    return res.status(401).json({
-      message: "Invalid or expired authentication token",
-    });
-  }
+  console.error("JWT authentication failed:", error);
+
+  return res.status(401).json({
+    message: "Invalid or expired authentication token",
+  });
+}
 };

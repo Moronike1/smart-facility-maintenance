@@ -9,6 +9,8 @@ import maintenanceRequestRoutes from "./routes/maintenanceRequest.routes";
 import workOrderRoutes from "./routes/workOrder.routes";
 import preventiveMaintenanceRoutes from "./routes/preventiveMaintenance.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
+import userRoutes from "./routes/user.routes";
+import maintenanceHistoryRoutes from "./routes/maintenanceHistory.routes";
 
 dotenv.config();
 
@@ -19,6 +21,7 @@ app.use(express.json());
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 app.use("/api/test", testRoutes);
 app.use("/api/facilities", facilityRoutes);
 app.use("/api/assets", assetRoutes);
@@ -32,6 +35,8 @@ app.use(
   preventiveMaintenanceRoutes
 );
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/maintenance-history", maintenanceHistoryRoutes);
+
 
 // Health check
 app.get("/", (_req, res) => {

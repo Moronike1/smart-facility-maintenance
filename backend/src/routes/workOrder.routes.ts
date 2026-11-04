@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  getWorkOrders,
   createWorkOrder,
   assignWorkOrder,
   updateWorkOrderStatus,
@@ -9,6 +10,12 @@ import { authenticate } from "../middleware/auth.middleware";
 import { authorize } from "../middleware/role.middleware";
 
 const router = Router();
+
+router.get(
+  "/",
+  authenticate,
+  getWorkOrders
+);
 
 router.post(
   "/",

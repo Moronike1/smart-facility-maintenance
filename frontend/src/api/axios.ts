@@ -1,3 +1,4 @@
+
 import axios from "axios";
 
 const api = axios.create({
@@ -7,6 +8,7 @@ const api = axios.create({
   },
 });
 
+// Attach the saved JWT to outgoing API requests.
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
@@ -17,9 +19,29 @@ api.interceptors.request.use(
 
     return config;
   },
+  (error) => Promise.reject(error)
+);
+
+// Handle expired or invalid authentication responses.
+
+api.interceptors.response.use(
+  (response) => response,
   (error) => {
+    if (error.response?.status === 401) {
+      const token = localStorage.getItem("token");
+
+      if (token) {
+        localStorage.removeItem("token");
+
+        window.dispatchEvent(
+          new Event("auth-changed")
+        );
+      }
+    }
+
     return Promise.reject(error);
   }
 );
+
 
 export default api;

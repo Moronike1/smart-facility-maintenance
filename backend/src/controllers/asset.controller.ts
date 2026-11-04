@@ -3,6 +3,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../generated/prisma/client";
 import { calculateAssetRisk } from "../utils/risk.util";
 import "dotenv/config";
+import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL!,

@@ -13,6 +13,67 @@ const adapter = new PrismaPg({
 
 const prisma = new PrismaClient({ adapter });
 
+
+export const getWorkOrders = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const workOrders = await prisma.workOrder.findMany({
+      include: {
+        request: {
+          include: {
+            asset: {
+              include: {
+                facility: true,
+              },
+            },
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+        technician: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        serviceProvider: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        maintenanceHistory: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return res.status(200).json({
+      message: "Work orders retrieved successfully",
+      count: workOrders.length,
+      workOrders,
+    });
+  } catch (error) {
+    console.error("Get work orders error:", error);
+
+    return res.status(500).json({
+      message: "An error occurred while retrieving work orders",
+    });
+  }
+};
+
+
+
 export const createWorkOrder = async (
   req: AuthenticatedRequest,
   res: Response

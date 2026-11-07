@@ -25,7 +25,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-slate-950">
+   <div className="min-h-screen w-full overflow-x-clip bg-slate-950">
       {/* Full-width top header */}
       <header className="sticky top-0 z-50 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm sm:px-6">
         <div className="flex min-w-0 items-center gap-3">

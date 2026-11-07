@@ -2,9 +2,7 @@ import { Response } from "express";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../generated/prisma/client";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
-import {
-  isValidWorkOrderStatusTransition,
-} from "../utils/workOrderStatus.util";
+import { isValidWorkOrderStatusTransition } from "../utils/workOrderStatus.util";
 import "dotenv/config";
 
 const adapter = new PrismaPg({
@@ -13,10 +11,9 @@ const adapter = new PrismaPg({
 
 const prisma = new PrismaClient({ adapter });
 
-
 export const getWorkOrders = async (
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
     const workOrders = await prisma.workOrder.findMany({
@@ -72,20 +69,13 @@ export const getWorkOrders = async (
   }
 };
 
-
-
 export const createWorkOrder = async (
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
-    const {
-      requestId,
-      technicianId,
-      serviceProviderId,
-      dueDate,
-      notes,
-    } = req.body;
+    const { requestId, technicianId, serviceProviderId, dueDate, notes } =
+      req.body;
 
     if (!requestId) {
       return res.status(400).json({
@@ -93,15 +83,14 @@ export const createWorkOrder = async (
       });
     }
 
-    const maintenanceRequest =
-      await prisma.maintenanceRequest.findUnique({
-        where: {
-          id: Number(requestId),
-        },
-        include: {
-          workOrder: true,
-        },
-      });
+    const maintenanceRequest = await prisma.maintenanceRequest.findUnique({
+      where: {
+        id: Number(requestId),
+      },
+      include: {
+        workOrder: true,
+      },
+    });
 
     if (!maintenanceRequest) {
       return res.status(404).json({
@@ -111,8 +100,7 @@ export const createWorkOrder = async (
 
     if (maintenanceRequest.workOrder) {
       return res.status(409).json({
-        message:
-          "A work order already exists for this maintenance request",
+        message: "A work order already exists for this maintenance request",
       });
     }
 
@@ -126,7 +114,7 @@ export const createWorkOrder = async (
       });
     }
 
-    // Validate technician if supplied
+    // Validate technician if supplied.
     if (technicianId !== undefined && technicianId !== null) {
       const technician = await prisma.user.findUnique({
         where: {
@@ -142,17 +130,13 @@ export const createWorkOrder = async (
 
       if (technician.role !== "TECHNICIAN") {
         return res.status(400).json({
-          message:
-            "Selected user is not registered as a technician",
+          message: "Selected user is not registered as a technician",
         });
       }
     }
 
-    // Validate service provider if supplied
-    if (
-      serviceProviderId !== undefined &&
-      serviceProviderId !== null
-    ) {
+    // Validate service provider if supplied.
+    if (serviceProviderId !== undefined && serviceProviderId !== null) {
       const serviceProvider = await prisma.user.findUnique({
         where: {
           id: Number(serviceProviderId),
@@ -167,8 +151,7 @@ export const createWorkOrder = async (
 
       if (serviceProvider.role !== "SERVICE_PROVIDER") {
         return res.status(400).json({
-          message:
-            "Selected user is not registered as a service provider",
+          message: "Selected user is not registered as a service provider",
         });
       }
     }
@@ -192,8 +175,7 @@ export const createWorkOrder = async (
               }
             : undefined,
         serviceProvider:
-          serviceProviderId !== undefined &&
-          serviceProviderId !== null
+          serviceProviderId !== undefined && serviceProviderId !== null
             ? {
                 connect: {
                   id: Number(serviceProviderId),
@@ -234,7 +216,7 @@ export const createWorkOrder = async (
 
 export const assignWorkOrder = async (
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
     const id = Number(req.params.id);
@@ -251,8 +233,7 @@ export const assignWorkOrder = async (
       (serviceProviderId === undefined || serviceProviderId === null)
     ) {
       return res.status(400).json({
-        message:
-          "Technician ID or service provider ID is required",
+        message: "Technician ID or service provider ID is required",
       });
     }
 
@@ -263,8 +244,7 @@ export const assignWorkOrder = async (
       serviceProviderId !== null
     ) {
       return res.status(400).json({
-        message:
-          "Assign either a technician or a service provider, not both",
+        message: "Assign either a technician or a service provider, not both",
       });
     }
 
@@ -293,16 +273,12 @@ export const assignWorkOrder = async (
 
       if (technician.role !== "TECHNICIAN") {
         return res.status(400).json({
-          message:
-            "Selected user is not registered as a technician",
+          message: "Selected user is not registered as a technician",
         });
       }
     }
 
-    if (
-      serviceProviderId !== undefined &&
-      serviceProviderId !== null
-    ) {
+    if (serviceProviderId !== undefined && serviceProviderId !== null) {
       const serviceProvider = await prisma.user.findUnique({
         where: {
           id: Number(serviceProviderId),
@@ -317,8 +293,7 @@ export const assignWorkOrder = async (
 
       if (serviceProvider.role !== "SERVICE_PROVIDER") {
         return res.status(400).json({
-          message:
-            "Selected user is not registered as a service provider",
+          message: "Selected user is not registered as a service provider",
         });
       }
     }
@@ -331,8 +306,7 @@ export const assignWorkOrder = async (
             ? Number(technicianId)
             : null,
         serviceProviderId:
-          serviceProviderId !== undefined &&
-          serviceProviderId !== null
+          serviceProviderId !== undefined && serviceProviderId !== null
             ? Number(serviceProviderId)
             : null,
         assignedDate: new Date(),
@@ -355,7 +329,7 @@ export const assignWorkOrder = async (
 
 export const updateWorkOrderStatus = async (
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
     const id = Number(req.params.id);
@@ -383,11 +357,27 @@ export const updateWorkOrderStatus = async (
       });
     }
 
-    const validTransition =
-      isValidWorkOrderStatusTransition(
-        workOrder.status,
-        status
-      );
+    // Technicians can only update work orders assigned to them.
+    if (req.user?.role === "TECHNICIAN") {
+      if (workOrder.technicianId !== req.user.userId) {
+        return res.status(403).json({
+          message: "You are not authorised to update this work order",
+        });
+      }
+
+      // Technicians can only start their assigned work orders.
+      if (status !== "IN_PROGRESS") {
+        return res.status(403).json({
+          message:
+            "Technicians can only move assigned work orders to IN_PROGRESS",
+        });
+      }
+    }
+
+    const validTransition = isValidWorkOrderStatusTransition(
+      workOrder.status,
+      status,
+    );
 
     if (!validTransition) {
       return res.status(400).json({
@@ -419,76 +409,83 @@ export const updateWorkOrderStatus = async (
       workOrder: updatedWorkOrder,
     });
   } catch (error) {
-    console.error(
-      "Update work order status error:",
-      error
-    );
+    console.error("Update work order status error:", error);
 
     return res.status(500).json({
-      message:
-        "An error occurred while updating the work order status",
+      message: "An error occurred while updating the work order status",
     });
   }
 };
 
 export const completeWorkOrder = async (
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
     const id = Number(req.params.id);
 
-    if (Number.isNaN(id)) {
+    if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({
         message: "Invalid work order ID",
       });
     }
 
-    const {
-      labourCost,
-      materialCost,
-      otherCost,
-      notes,
-    } = req.body;
+    const { labourCost, materialCost, otherCost, notes } = req.body;
 
-    const workOrder = await prisma.workOrder.findUnique({
-      where: { id },
-      include: {
-        request: true,
-      },
-    });
+    // Validate maintenance costs.
+    const parseCost = (value: unknown): number | null => {
+      if (value === undefined || value === null || value === "") {
+        return 0;
+      }
 
-    if (!workOrder) {
-      return res.status(404).json({
-        message: "Work order not found",
-      });
-    }
+      const amount = Number(value);
 
-    if (workOrder.status !== "IN_PROGRESS") {
+      if (!Number.isFinite(amount) || amount < 0) {
+        return null;
+      }
+
+      return amount;
+    };
+
+    const labour = parseCost(labourCost);
+    const material = parseCost(materialCost);
+    const other = parseCost(otherCost);
+
+    if (labour === null || material === null || other === null) {
       return res.status(400).json({
-        message:
-          "Only an IN_PROGRESS work order can be completed",
+        message: "Maintenance costs must be valid non-negative numbers",
       });
     }
-
-    const labour = labourCost
-      ? Number(labourCost)
-      : 0;
-
-    const material = materialCost
-      ? Number(materialCost)
-      : 0;
-
-    const other = otherCost
-      ? Number(otherCost)
-      : 0;
 
     const total = labour + material + other;
 
-    const completedDate = new Date();
+    const result = await prisma.$transaction(async (tx) => {
+      const workOrder = await tx.workOrder.findUnique({
+        where: { id },
+        include: {
+          request: true,
+        },
+      });
 
-    const updatedWorkOrder =
-      await prisma.workOrder.update({
+      if (!workOrder) {
+        throw new Error("WORK_ORDER_NOT_FOUND");
+      }
+
+      // Technicians can only complete work orders assigned to them.
+      if (
+        req.user?.role === "TECHNICIAN" &&
+        workOrder.technicianId !== req.user.userId
+      ) {
+        throw new Error("UNAUTHORISED_WORK_ORDER");
+      }
+
+      if (workOrder.status !== "IN_PROGRESS") {
+        throw new Error("WORK_ORDER_NOT_IN_PROGRESS");
+      }
+
+      const completedDate = new Date();
+
+      const updatedWorkOrder = await tx.workOrder.update({
         where: { id },
         data: {
           status: "COMPLETED",
@@ -497,59 +494,79 @@ export const completeWorkOrder = async (
           materialCost: material,
           otherCost: other,
           totalCost: total,
-          notes:
-            notes !== undefined
-              ? notes
-              : workOrder.notes,
+          notes: notes !== undefined ? notes : workOrder.notes,
         },
       });
 
-    await prisma.maintenanceRequest.update({
-      where: {
-        id: workOrder.requestId,
-      },
-      data: {
-        status: "COMPLETED",
-      },
-    });
-
-    const maintenanceHistory =
-      await prisma.maintenanceHistory.create({
+      await tx.maintenanceRequest.update({
+        where: {
+          id: workOrder.requestId,
+        },
         data: {
-          asset: {
-            connect: {
-              id: workOrder.request.assetId!,
-            },
-          },
-          workOrder: {
-            connect: {
-              id: workOrder.id,
-            },
-          },
-          description:
-            workOrder.request.description,
-          maintenanceDate: completedDate,
-          cost: total,
-          remarks:
-            notes ||
-            "Maintenance work completed successfully",
+          status: "COMPLETED",
         },
       });
+
+      // Create maintenance history only when an asset is linked.
+      let maintenanceHistory = null;
+
+      if (workOrder.request.assetId !== null) {
+        maintenanceHistory = await tx.maintenanceHistory.create({
+          data: {
+            asset: {
+              connect: {
+                id: workOrder.request.assetId,
+              },
+            },
+            workOrder: {
+              connect: {
+                id: workOrder.id,
+              },
+            },
+            description: workOrder.request.description,
+            maintenanceDate: completedDate,
+            cost: total,
+            remarks: notes || "Maintenance work completed successfully",
+          },
+        });
+      }
+
+      return {
+        updatedWorkOrder,
+        maintenanceHistory,
+      };
+    });
 
     return res.status(200).json({
       message: "Work order completed successfully",
-      workOrder: updatedWorkOrder,
-      maintenanceHistory,
+      workOrder: result.updatedWorkOrder,
+      maintenanceHistory: result.maintenanceHistory,
     });
   } catch (error) {
-    console.error(
-      "Complete work order error:",
-      error
-    );
+    console.error("Complete work order error:", error);
+
+    if (error instanceof Error) {
+      if (error.message === "WORK_ORDER_NOT_FOUND") {
+        return res.status(404).json({
+          message: "Work order not found",
+        });
+      }
+
+      if (error.message === "UNAUTHORISED_WORK_ORDER") {
+        return res.status(403).json({
+          message: "You are not authorised to complete this work order",
+        });
+      }
+
+      if (error.message === "WORK_ORDER_NOT_IN_PROGRESS") {
+        return res.status(400).json({
+          message: "Only an IN_PROGRESS work order can be completed",
+        });
+      }
+    }
 
     return res.status(500).json({
-      message:
-        "An error occurred while completing the work order",
+      message: "An error occurred while completing the work order",
     });
   }
 };

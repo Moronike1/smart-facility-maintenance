@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   getWorkOrders,
@@ -27,11 +27,18 @@ const WorkOrders = () => {
   const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [showForm, setShowForm] = useState(false);
+  const initialRequestId =
+    new URLSearchParams(window.location.search).get("requestId") ?? "";
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+
+  const [showForm, setShowForm] = useState(
+    initialRequestId !== ""
+  );
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const [requestId, setRequestId] = useState("");
+  const [requestId, setRequestId] = useState(initialRequestId);
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
   const [technicians, setTechnicians] = useState<Technician[]>([]);
@@ -45,27 +52,43 @@ const WorkOrders = () => {
   const [otherCost, setOtherCost] = useState("");
   const [completionNotes, setCompletionNotes] = useState("");
 
+
+
+
   const loadData = async () => {
     try {
       setError("");
 
-      const [orders, maintenanceRequests, availableTechnicians] =
-        await Promise.all([
-          getWorkOrders(),
-          getMaintenanceRequests(),
-          getTechnicians(),
-        ]);
+      // Load work orders and maintenance requests independently
+      const [orders, maintenanceRequests] = await Promise.all([
+        getWorkOrders(),
+        getMaintenanceRequests(),
+      ]);
 
+      // Display the available data
       setWorkOrders(orders);
       setRequests(maintenanceRequests);
-      setTechnicians(availableTechnicians);
+
+      // Technician lookup is optional.
+      // A technician account may not have permission to access this endpoint.
+      try {
+        const availableTechnicians = await getTechnicians();
+        setTechnicians(availableTechnicians);
+      } catch (technicianError) {
+        console.warn(
+          "Technician list unavailable for this account:",
+          technicianError
+        );
+        setTechnicians([]);
+      }
     } catch (err) {
       console.error("Failed to load work orders:", err);
-      setError("Unable to load work orders, requests or technicians.");
+      setError("Unable to load work orders or maintenance requests.");
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     void loadData();
@@ -526,166 +549,190 @@ const WorkOrders = () => {
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900">
-          <table className="w-full min-w-[1200px] text-left">
-            <thead className="border-b border-slate-800 text-xs uppercase tracking-wide text-slate-400">
-              <tr>
-                <th className="px-4 py-4">Work Order</th>
-                <th className="px-4 py-4">Maintenance Request</th>
-                <th className="px-4 py-4">Asset / Facility</th>
-                <th className="px-4 py-4">Assigned To</th>
-                <th className="px-4 py-4">Assignment</th>
-                <th className="px-4 py-4">Due Date</th>
-                <th className="px-4 py-4">Status</th>
-                <th className="px-4 py-4">Actions</th>
-                <th className="px-4 py-4">Total Cost</th>
-              </tr>
-            </thead>
+<div className="rounded-xl border border-slate-800 bg-slate-900">
+  {/* Floating horizontal scrollbar */}
+  <div
+    ref={topScrollRef}
+   className="sticky top-16 z-40 overflow-x-auto overflow-y-hidden border-b border-slate-700 bg-slate-900 shadow-md"
+    onScroll={() => {
+      if (topScrollRef.current && tableScrollRef.current) {
+        tableScrollRef.current.scrollLeft =
+          topScrollRef.current.scrollLeft;
+      }
+    }}
+  >
+    <div className="h-3 min-w-[1200px]" />
+  </div>
 
-            <tbody>
-              {workOrders.map((order) => (
-                <tr
-                  key={order.id}
-                  className="border-b border-slate-800 last:border-b-0 hover:bg-slate-800/40"
-                >
-                  <td className="px-4 py-4">
-                    <p className="font-semibold">{order.workOrderNumber}</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Created {formatDate(order.createdAt)}
-                    </p>
-                  </td>
+  {/* Main work orders table */}
+  <div
+    ref={tableScrollRef}
+    className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    onScroll={() => {
+      if (topScrollRef.current && tableScrollRef.current) {
+        topScrollRef.current.scrollLeft =
+          tableScrollRef.current.scrollLeft;
+      }
+    }}
+  >
+    <table className="w-full min-w-[1200px] text-left">
+      <thead className="border-b border-slate-800 text-xs uppercase tracking-wide text-slate-400">
+        <tr>
+          <th className="px-4 py-4">Work Order</th>
+          <th className="px-4 py-4">Maintenance Request</th>
+          <th className="px-4 py-4">Asset / Facility</th>
+          <th className="px-4 py-4">Assigned To</th>
+          <th className="px-4 py-4">Assignment</th>
+          <th className="px-4 py-4">Due Date</th>
+          <th className="px-4 py-4">Status</th>
+          <th className="px-4 py-4">Actions</th>
+          <th className="px-4 py-4">Total Cost</th>
+        </tr>
+      </thead>
 
-                  <td className="px-4 py-4">
-                    <p className="font-medium">
-                      {order.request?.requestNumber ?? `Request #${order.requestId}`}
-                    </p>
-                    <p className="mt-1 max-w-xs truncate text-sm text-slate-400">
-                      {order.request?.description ?? "No description"}
-                    </p>
-                  </td>
+      <tbody>
+        {workOrders.map((order) => (
+          <tr
+            key={order.id}
+            className="border-b border-slate-800 last:border-b-0 hover:bg-slate-800/40"
+          >
+            <td className="px-4 py-4">
+              <p className="font-semibold">{order.workOrderNumber}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Created {formatDate(order.createdAt)}
+              </p>
+            </td>
 
-                  <td className="px-4 py-4">
-                    <p>{order.request?.asset?.name ?? "No asset linked"}</p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      {order.request?.asset?.facility?.name ?? "—"}
-                    </p>
-                  </td>
+            <td className="px-4 py-4">
+              <p className="font-medium">
+                {order.request?.requestNumber ?? `Request #${order.requestId}`}
+              </p>
+              <p className="mt-1 max-w-xs truncate text-sm text-slate-400">
+                {order.request?.description ?? "No description"}
+              </p>
+            </td>
 
-                  <td className="px-4 py-4">
-                    {order.technician ? (
-                      <>
-                        <p>{order.technician.name}</p>
-                        <p className="text-xs text-slate-400">Technician</p>
-                      </>
-                    ) : order.serviceProvider ? (
-                      <>
-                        <p>{order.serviceProvider.name}</p>
-                        <p className="text-xs text-slate-400">Service provider</p>
-                      </>
-                    ) : (
-                      <span className="text-slate-500">Unassigned</span>
-                    )}
-                  </td>
+            <td className="px-4 py-4">
+              <p>{order.request?.asset?.name ?? "No asset linked"}</p>
+              <p className="mt-1 text-xs text-slate-400">
+                {order.request?.asset?.facility?.name ?? "—"}
+              </p>
+            </td>
 
-                  <td className="px-4 py-4">
-                    {!order.technician &&
-                      !order.serviceProvider &&
-                      ["ASSIGNED", "IN_PROGRESS"].includes(order.status) && (
-                        <div className="flex min-w-48 flex-col gap-2">
-                          <select
-                            aria-label={`Select technician for ${order.workOrderNumber}`}
-                            value={selectedTechnicians[order.id] ?? ""}
-                            onChange={(event) =>
-                              setSelectedTechnicians((previous) => ({
-                                ...previous,
-                                [order.id]: event.target.value,
-                              }))
-                            }
-                            className="rounded-lg border border-slate-700 bg-slate-950 p-2 text-sm text-white"
-                          >
-                            <option value="">Select technician</option>
-                            {technicians.map((technician) => (
-                              <option key={technician.id} value={technician.id}>
-                                {technician.name}
-                              </option>
-                            ))}
-                          </select>
+            <td className="px-4 py-4">
+              {order.technician ? (
+                <>
+                  <p>{order.technician.name}</p>
+                  <p className="text-xs text-slate-400">Technician</p>
+                </>
+              ) : order.serviceProvider ? (
+                <>
+                  <p>{order.serviceProvider.name}</p>
+                  <p className="text-xs text-slate-400">Service provider</p>
+                </>
+              ) : (
+                <span className="text-slate-500">Unassigned</span>
+              )}
+            </td>
 
-                          <button
-                            type="button"
-                            disabled={
-                              assigningId === order.id ||
-                              !selectedTechnicians[order.id]
-                            }
-                            onClick={() => void handleAssign(order.id)}
-                            className="rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {assigningId === order.id ? "Assigning..." : "Assign Technician"}
-                          </button>
-
-                          {technicians.length === 0 && (
-                            <p className="text-xs text-amber-300">
-                              No active technicians found.
-                            </p>
-                          )}
-                        </div>
-                      )}
-                  </td>
-
-                  <td className="px-4 py-4 text-sm text-slate-300">
-                    {formatDate(order.dueDate)}
-                  </td>
-
-                  <td className="px-4 py-4">
-                    <span
-                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusStyle(order.status)}`}
+            <td className="px-4 py-4">
+              {!order.technician &&
+                !order.serviceProvider &&
+                ["ASSIGNED", "IN_PROGRESS"].includes(order.status) && (
+                  <div className="flex min-w-48 flex-col gap-2">
+                    <select
+                      aria-label={`Select technician for ${order.workOrderNumber}`}
+                      value={selectedTechnicians[order.id] ?? ""}
+                      onChange={(event) =>
+                        setSelectedTechnicians((previous) => ({
+                          ...previous,
+                          [order.id]: event.target.value,
+                        }))
+                      }
+                      className="rounded-lg border border-slate-700 bg-slate-950 p-2 text-sm text-white"
                     >
-                      {order.status.replaceAll("_", " ")}
-                    </span>
-                  </td>
+                      <option value="">Select technician</option>
+                      {technicians.map((technician) => (
+                        <option key={technician.id} value={technician.id}>
+                          {technician.name}
+                        </option>
+                      ))}
+                    </select>
 
+                    <button
+                      type="button"
+                      disabled={
+                        assigningId === order.id ||
+                        !selectedTechnicians[order.id]
+                      }
+                      onClick={() => void handleAssign(order.id)}
+                      className="rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {assigningId === order.id ? "Assigning..." : "Assign Technician"}
+                    </button>
 
-                  <td className="px-4 py-4">
-                    {order.status === "ASSIGNED" && order.technician && (
-                      <button
-                        type="button"
-                        disabled={assigningId === order.id}
-                        onClick={() => void handleStartWork(order.id)}
-                        className="rounded-lg bg-blue-500 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                      >
-                        {assigningId === order.id ? "Starting..." : "Start Work"}
-                      </button>
+                    {technicians.length === 0 && (
+                      <p className="text-xs text-amber-300">
+                        No active technicians found.
+                      </p>
                     )}
+                  </div>
+                )}
+            </td>
 
-                    {order.status === "IN_PROGRESS" && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          console.log("Complete Work clicked:", order.id);
-                          setError("");
-                          setSuccess("");
-                          setCompletionOrderId(order.id);
-                        }}
-                        className="rounded-lg bg-green-500 px-3 py-2 text-sm font-semibold text-white"
-                      >
-                        Complete Work
-                      </button>
-                    )}
+            <td className="px-4 py-4 text-sm text-slate-300">
+              {formatDate(order.dueDate)}
+            </td>
 
-                    {["COMPLETED", "CANCELLED"].includes(order.status) && (
-                      <span className="text-sm text-slate-500">No actions</span>
-                    )}
-                  </td>
+            <td className="px-4 py-4">
+              <span
+                className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusStyle(order.status)}`}
+              >
+                {order.status.replaceAll("_", " ")}
+              </span>
+            </td>
 
+            <td className="px-4 py-4">
+              {order.status === "ASSIGNED" && order.technician && (
+                <button
+                  type="button"
+                  disabled={assigningId === order.id}
+                  onClick={() => void handleStartWork(order.id)}
+                  className="rounded-lg bg-blue-500 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {assigningId === order.id ? "Starting..." : "Start Work"}
+                </button>
+              )}
 
-                  <td className="px-4 py-4 font-medium">
-                    {formatCost(order.totalCost)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              {order.status === "IN_PROGRESS" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError("");
+                    setSuccess("");
+                    setCompletionOrderId(order.id);
+                  }}
+                  className="rounded-lg bg-green-500 px-3 py-2 text-sm font-semibold text-white"
+                >
+                  Complete Work
+                </button>
+              )}
+
+              {["COMPLETED", "CANCELLED"].includes(order.status) && (
+                <span className="text-sm text-slate-500">No actions</span>
+              )}
+            </td>
+
+            <td className="px-4 py-4 font-medium">
+              {formatCost(order.totalCost)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</div>
+
       )}
     </div>
   );

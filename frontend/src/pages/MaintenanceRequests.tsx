@@ -391,14 +391,14 @@ const MaintenanceRequests = () => {
                   <td className="px-4 py-4">
                     <span
                       className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${request.status === "COMPLETED"
-                          ? "border-green-500/30 bg-green-500/10 text-green-400"
-                          : request.status === "APPROVED"
-                            ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-400"
-                            : request.status === "IN_PROGRESS"
-                              ? "border-blue-500/30 bg-blue-500/10 text-blue-400"
-                              : request.status === "CANCELLED"
-                                ? "border-red-500/30 bg-red-500/10 text-red-400"
-                                : "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                        ? "border-green-500/30 bg-green-500/10 text-green-400"
+                        : request.status === "APPROVED"
+                          ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-400"
+                          : request.status === "IN_PROGRESS"
+                            ? "border-blue-500/30 bg-blue-500/10 text-blue-400"
+                            : request.status === "CANCELLED"
+                              ? "border-red-500/30 bg-red-500/10 text-red-400"
+                              : "border-amber-500/30 bg-amber-500/10 text-amber-400"
                         }`}
                     >
                       {request.status.replaceAll("_", " ")}
@@ -420,9 +420,12 @@ const MaintenanceRequests = () => {
                     )}
 
                     {request.status === "APPROVED" && (
-                      <span className="text-sm text-cyan-400">
-                        Ready for work order
-                      </span>
+                      <a
+                        href={`/work-orders?requestId=${request.id}`}
+                        className="inline-flex rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
+                      >
+                        + Create Work Order
+                      </a>
                     )}
 
                     {request.status === "ASSIGNED" && (

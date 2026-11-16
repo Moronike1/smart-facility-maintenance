@@ -6,7 +6,13 @@ interface AppLayoutProps {
   children: ReactNode;
 }
 
-const navigationItems = [
+interface NavigationItem {
+  label: string;
+  path: string;
+  icon: string;
+}
+
+const managementNavigation: NavigationItem[] = [
   { label: "Dashboard", path: "/dashboard", icon: "▦" },
   { label: "Facilities", path: "/facilities", icon: "▤" },
   { label: "Assets", path: "/assets", icon: "▣" },
@@ -15,9 +21,42 @@ const navigationItems = [
   { label: "Preventive Maintenance", path: "/preventive-maintenance", icon: "◷" },
   { label: "Reports", path: "/reports", icon: "▥" },
   { label: "Maintenance History", path: "/maintenance-history", icon: "↶" },
+  { label: "Resident Approvals", path: "/resident-approvals", icon: "✓" },
 ];
 
+const technicianNavigation: NavigationItem[] = [
+  { label: "Dashboard", path: "/dashboard", icon: "▦" },
+  { label: "Work Orders", path: "/work-orders", icon: "⚒" },
+  { label: "Maintenance History", path: "/maintenance-history", icon: "↶" },
+];
+const residentNavigation: NavigationItem[] = [
+  { label: "Resident Portal", path: "/resident-portal", icon: "⌂" },
+  { label: "Report a Problem", path: "/submit-request", icon: "＋" },
+  { label: "My Maintenance Requests", path: "/my-requests", icon: "☷" },
+];
+
+
 export default function AppLayout({ children }: AppLayoutProps) {
+  const storedUser = localStorage.getItem("user");
+
+  let user: { name?: string; role?: string } = {};
+
+  try {
+    user = storedUser ? JSON.parse(storedUser) : {};
+  } catch {
+    user = {};
+  }
+
+  const role = user.role || "";
+  const isResident = role === "FACILITY_USER";
+  const isTechnician = role === "TECHNICIAN";
+
+  const navigationItems = isResident
+    ? residentNavigation
+    : isTechnician
+      ? technicianNavigation
+      : managementNavigation;
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -25,13 +64,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
   };
 
   return (
-   <div className="min-h-screen w-full overflow-x-clip bg-slate-950">
-      {/* Full-width top header */}
+    <div className="min-h-screen w-full overflow-x-clip bg-slate-950">
       <header className="sticky top-0 z-50 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-900 text-sm font-bold text-white">
             SF
           </div>
+
           <div className="min-w-0">
             <h1 className="truncate text-sm font-bold leading-5 text-slate-900 sm:text-base">
               Smart Facility
@@ -42,33 +81,32 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="ml-4 inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-400"
-          aria-label="Log out"
-        >
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className="h-4 w-4"
+        <div className="ml-4 flex items-center gap-3">
+          <div className="hidden text-right sm:block">
+            <p className="text-sm font-semibold text-slate-800">
+              {user.name || "User"}
+            </p>
+            <p className="text-xs text-slate-500">
+              {role.replaceAll("_", " ")}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-400"
+            aria-label="Log out"
           >
-            <path d="M10 17l5-5-5-5" />
-            <path d="M15 12H3" />
-            <path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6" />
-          </svg>
-          <span>Logout</span>
-        </button>
+            <span aria-hidden="true">↪</span>
+            <span>Logout</span>
+          </button>
+        </div>
       </header>
 
       <div className="flex min-h-[calc(100vh-4rem)] w-full items-stretch">
-        {/* Desktop sidebar */}
         <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-64 shrink-0 overflow-y-auto bg-slate-900 p-4 md:block">
           <p className="mb-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Main Menu
+            {isResident ? "Resident Menu" : isTechnician ? "Technician Menu" : "Management Menu"}
           </p>
 
           <nav className="space-y-1" aria-label="Main navigation">
@@ -94,9 +132,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </nav>
         </aside>
 
-        {/* Main page content */}
         <main className="min-w-0 flex-1 bg-slate-950 text-white">
-          {/* Mobile navigation */}
           <nav
             className="flex gap-2 overflow-x-auto border-b border-slate-800 bg-slate-900 p-3 md:hidden"
             aria-label="Mobile navigation"

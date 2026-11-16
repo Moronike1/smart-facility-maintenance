@@ -1,3 +1,4 @@
+
 import {
   MaintenanceStatus,
 } from "../../generated/prisma/client";
@@ -6,8 +7,9 @@ const allowedTransitions: Record<
   MaintenanceStatus,
   MaintenanceStatus[]
 > = {
-  PENDING: ["APPROVED", "CANCELLED"],
+  PENDING: ["APPROVED", "REJECTED", "CANCELLED"],
   APPROVED: ["ASSIGNED", "CANCELLED"],
+  REJECTED: [],
   ASSIGNED: ["IN_PROGRESS", "CANCELLED"],
   IN_PROGRESS: ["COMPLETED", "CANCELLED"],
   COMPLETED: [],

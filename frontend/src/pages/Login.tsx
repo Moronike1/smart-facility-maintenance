@@ -2,6 +2,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { loginUser } from "../api/auth.api";
+import { Link } from "react-router-dom";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -24,10 +25,14 @@ const Login = () => {
       localStorage.setItem("user", JSON.stringify(data.user));
 
       window.location.href = "/";
-    } catch (error) {
-      console.error("Login failed:", error);
-      setError("Invalid email or password. Please try again.");
-    } finally {
+   } catch (error: any) {
+  console.error("Login failed:", error);
+
+  setError(
+    error?.response?.data?.message ||
+    "Invalid email or password. Please try again."
+  );
+} finally {
       setLoading(false);
     }
   };
@@ -202,10 +207,20 @@ const Login = () => {
           </form>
 
           <div className="mt-6 border-t border-slate-800 pt-5 text-center">
-            <p className="text-xs text-slate-500">
-              Secure access for authorised facility personnel
-            </p>
-          </div>
+  <p className="text-sm text-slate-400">
+    New resident?{" "}
+    <Link
+      to="/register"
+      className="font-semibold text-cyan-400 hover:text-cyan-300"
+    >
+      Create an account
+    </Link>
+  </p>
+
+  <p className="mt-3 text-xs text-slate-500">
+    All resident registrations require Facility Manager approval.
+  </p>
+</div>
         </section>
 
         <footer className="mt-6 text-center text-xs text-slate-600">

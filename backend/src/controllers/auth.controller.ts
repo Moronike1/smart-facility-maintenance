@@ -13,21 +13,37 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 
+
 export const register = async (req: Request, res: Response) => {
   try {
-    const { name, email, password, phone, role } = req.body;
+    const { name, email, password, phone, address } = req.body;
 
     // Validate required fields
-    if (!name || !email || !password) {
+    if (
+      typeof name !== "string" ||
+      typeof email !== "string" ||
+      typeof password !== "string" ||
+      !name.trim() ||
+      !email.trim() ||
+      !password
+    ) {
       return res.status(400).json({
         message: "Name, email and password are required",
       });
     }
 
+    if (password.length < 8) {
+      return res.status(400).json({
+        message: "Password must be at least 8 characters long",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: {
-        email,
+        email: normalizedEmail,
       },
     });
 
@@ -40,14 +56,24 @@ export const register = async (req: Request, res: Response) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user
+    // Create a resident account awaiting manager approval
     const user = await prisma.user.create({
       data: {
-        name,
-        email,
+        name: name.trim(),
+        email: normalizedEmail,
         password: hashedPassword,
-        phone,
-        role,
+        phone:
+          typeof phone === "string" && phone.trim()
+            ? phone.trim()
+            : null,
+        address:
+          typeof address === "string" && address.trim()
+            ? address.trim()
+            : null,
+
+        // Never accept roles or account status from public registration
+        role: "FACILITY_USER",
+        status: "PENDING",
       },
     });
 
@@ -55,7 +81,8 @@ export const register = async (req: Request, res: Response) => {
     const { password: _, ...safeUser } = user;
 
     return res.status(201).json({
-      message: "User registered successfully",
+      message:
+        "Registration successful. Your account is awaiting Facility Manager approval.",
       user: safeUser,
     });
   } catch (error) {
@@ -66,6 +93,7 @@ export const register = async (req: Request, res: Response) => {
     });
   }
 };
+
 
 export const login = async (req: Request, res: Response) => {
   try {
@@ -89,11 +117,28 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    if (user.status !== "ACTIVE") {
-      return res.status(403).json({
-        message: "Your account is inactive",
-      });
-    }
+   if (user.status === "PENDING") {
+  return res.status(403).json({
+    message:
+      "Your registration is awaiting approval from the Facility Manager.",
+    status: "PENDING",
+  });
+}
+
+if (user.status === "REJECTED") {
+  return res.status(403).json({
+    message:
+      "Your registration was not approved. Please contact the Facility Manager.",
+    status: "REJECTED",
+  });
+}
+
+if (user.status === "INACTIVE") {
+  return res.status(403).json({
+    message: "Your account has been deactivated. Please contact the Facility Manager.",
+    status: "INACTIVE",
+  });
+}
 
     const passwordMatch = await bcrypt.compare(password, user.password);
 

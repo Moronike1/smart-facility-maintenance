@@ -17,6 +17,15 @@ const MaintenanceRequests = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [approvingId, setApprovingId] = useState<number | null>(null);
+  const [selectedRequest, setSelectedRequest] =
+    useState<MaintenanceRequest | null>(null);
+
+  const [actionType, setActionType] = useState<
+    "REJECTED" | "CANCELLED" | null
+  >(null);
+
+  const [statusReason, setStatusReason] = useState("");
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -125,6 +134,49 @@ const MaintenanceRequests = () => {
       setApprovingId(null);
     }
   };
+
+
+  const handleStatusUpdate = async () => {
+    if (!selectedRequest || !actionType) return;
+
+    if (!statusReason.trim()) {
+      setError("Please provide a reason before proceeding.");
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+    setUpdatingStatus(true);
+
+    try {
+      await updateMaintenanceRequest(selectedRequest.id, {
+        status: actionType,
+        statusReason: statusReason.trim(),
+      });
+
+      await loadRequests();
+
+      setSuccess(
+        actionType === "REJECTED"
+          ? "Maintenance request rejected successfully."
+          : "Maintenance request cancelled successfully."
+      );
+
+      setSelectedRequest(null);
+      setActionType(null);
+      setStatusReason("");
+    } catch (err: any) {
+      console.error("Failed to update maintenance request:", err);
+
+      setError(
+        err?.response?.data?.message ||
+        "Failed to update the maintenance request."
+      );
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
 
   if (loading) {
     return (
@@ -406,18 +458,83 @@ const MaintenanceRequests = () => {
                   </td>
 
                   <td className="px-4 py-4">
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRequest(request)}
+                      className="mb-2 rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800"
+                    >
+                      View Details
+                    </button>
+
                     {request.status === "PENDING" && (
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={approvingId === request.id}
+                          onClick={() => void handleApprove(request.id)}
+                          className="rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
+                        >
+                          {approvingId === request.id ? "Approving..." : "Approve"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedRequest(request);
+                            setActionType("REJECTED");
+                            setStatusReason("");
+                          }}
+                          className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-500"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+
+                    {["APPROVED", "ASSIGNED", "IN_PROGRESS"].includes(request.status) && (
                       <button
                         type="button"
-                        disabled={approvingId === request.id}
-                        onClick={() => void handleApprove(request.id)}
-                        className="rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={() => {
+                          setSelectedRequest(request);
+                          setActionType("CANCELLED");
+                          setStatusReason("");
+                        }}
+                        className="rounded-lg border border-red-500 px-3 py-2 text-sm text-red-400 hover:bg-red-950"
                       >
-                        {approvingId === request.id
-                          ? "Approving..."
-                          : "Approve"}
+                        Cancel Request
                       </button>
                     )}
+
+                    {request.status === "APPROVED" && (
+                      <a
+                        href={`/work-orders?requestId=${request.id}`}
+                        className="mt-2 inline-flex rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
+                      >
+                        + Create Work Order
+                      </a>
+                    )}
+
+                    {request.status === "ASSIGNED" && (
+                      <p className="mt-2 text-sm text-blue-400">Work assigned</p>
+                    )}
+
+                    {request.status === "IN_PROGRESS" && (
+                      <p className="mt-2 text-sm text-blue-400">In progress</p>
+                    )}
+
+                    {request.status === "COMPLETED" && (
+                      <p className="mt-2 text-sm text-green-400">Completed</p>
+                    )}
+
+                    {request.status === "REJECTED" && (
+                      <p className="mt-2 text-sm text-red-400">Rejected</p>
+                    )}
+
+                    {request.status === "CANCELLED" && (
+                      <p className="mt-2 text-sm text-red-400">Cancelled</p>
+                    )}
+
 
                     {request.status === "APPROVED" && (
                       <a
@@ -458,6 +575,155 @@ const MaintenanceRequests = () => {
           </table>
         </div>
       )}
+
+      {/* Request Details Dialog */}
+      {selectedRequest && !actionType && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-2xl rounded-xl border border-slate-700 bg-slate-900 p-6">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white">
+                Maintenance Request Details
+              </h2>
+
+              <button
+                type="button"
+                onClick={() => setSelectedRequest(null)}
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 text-sm">
+              <p>
+                <span className="text-slate-400">Request Number: </span>
+                {selectedRequest.requestNumber}
+              </p>
+
+              <p>
+                <span className="text-slate-400">Category: </span>
+                {selectedRequest.category}
+              </p>
+
+              <p>
+                <span className="text-slate-400">Description: </span>
+                {selectedRequest.description}
+              </p>
+
+              <p>
+                <span className="text-slate-400">Location: </span>
+                {selectedRequest.locationDescription || "Not specified"}
+              </p>
+
+              <p>
+                <span className="text-slate-400">Severity: </span>
+                {selectedRequest.severity}
+              </p>
+
+              <p>
+                <span className="text-slate-400">Priority: </span>
+                {selectedRequest.priority}
+              </p>
+
+              <p>
+                <span className="text-slate-400">Status: </span>
+                {selectedRequest.status.replaceAll("_", " ")}
+              </p>
+
+              {selectedRequest.statusReason && (
+                <p className="rounded-lg border border-red-800 bg-red-950/30 p-3 text-red-300">
+                  <strong>Status explanation:</strong>{" "}
+                  {selectedRequest.statusReason}
+                </p>
+              )}
+
+              <p>
+                <span className="text-slate-400">Submitted: </span>
+                {new Date(selectedRequest.createdAt).toLocaleString()}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSelectedRequest(null)}
+              className="mt-6 rounded-lg bg-slate-700 px-5 py-2 text-white hover:bg-slate-600"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection / Cancellation Dialog */}
+      {selectedRequest && actionType && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-lg rounded-xl border border-slate-700 bg-slate-900 p-6">
+            <h2 className="text-xl font-bold text-white">
+              {actionType === "REJECTED"
+                ? "Reject Maintenance Request"
+                : "Cancel Maintenance Request"}
+            </h2>
+
+            <p className="mt-2 text-sm text-slate-400">
+              Request: {selectedRequest.requestNumber}
+            </p>
+
+            <label
+              htmlFor="statusReason"
+              className="mt-5 block text-sm font-medium text-slate-300"
+            >
+              {actionType === "REJECTED"
+                ? "Reason for rejection"
+                : "Reason for cancellation"}
+            </label>
+
+            <textarea
+              id="statusReason"
+              rows={4}
+              required
+              minLength={5}
+              maxLength={1000}
+              value={statusReason}
+              onChange={(event) => setStatusReason(event.target.value)}
+              placeholder="Explain why this maintenance request is being rejected or cancelled..."
+              className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-white placeholder:text-slate-500"
+            />
+
+            <p className="mt-1 text-xs text-slate-500">
+              Minimum 5 characters. This explanation will be visible to the resident.
+            </p>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                disabled={updatingStatus}
+                onClick={() => {
+                  setSelectedRequest(null);
+                  setActionType(null);
+                  setStatusReason("");
+                }}
+                className="rounded-lg bg-slate-700 px-4 py-2 text-white hover:bg-slate-600 disabled:opacity-50"
+              >
+                Back
+              </button>
+
+              <button
+                type="button"
+                disabled={updatingStatus || statusReason.trim().length < 5}
+                onClick={() => void handleStatusUpdate()}
+                className="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {updatingStatus
+                  ? "Processing..."
+                  : actionType === "REJECTED"
+                    ? "Confirm Rejection"
+                    : "Confirm Cancellation"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

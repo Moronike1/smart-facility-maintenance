@@ -507,30 +507,17 @@ export const completeWorkOrder = async (
         },
       });
 
-      // Create maintenance history only when an asset is linked.
-      let maintenanceHistory = null;
-
-      if (workOrder.request.assetId !== null) {
-        maintenanceHistory = await tx.maintenanceHistory.create({
-          data: {
-            asset: {
-              connect: {
-                id: workOrder.request.assetId,
-              },
-            },
-            workOrder: {
-              connect: {
-                id: workOrder.id,
-              },
-            },
-            description: workOrder.request.description,
-            maintenanceDate: completedDate,
-            cost: total,
-            remarks: notes || "Maintenance work completed successfully",
-          },
-        });
-      }
-
+   // Create maintenance history for every completed work order.
+const maintenanceHistory = await tx.maintenanceHistory.create({
+  data: {
+    assetId: workOrder.request.assetId,
+    workOrderId: workOrder.id,
+    description: workOrder.request.description,
+    maintenanceDate: completedDate,
+    cost: total,
+    remarks: notes || "Maintenance work completed successfully",
+  },
+});
       return {
         updatedWorkOrder,
         maintenanceHistory,

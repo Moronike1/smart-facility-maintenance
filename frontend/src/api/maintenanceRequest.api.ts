@@ -5,6 +5,8 @@ export interface MaintenanceRequest {
   requestNumber: string;
   userId: number;
   assetId?: number | null;
+  locationType?: "PRIVATE_UNIT" | "SHARED_FACILITY" | null;
+  locationDescription?: string | null;
 
   category: string;
   description: string;
@@ -14,7 +16,16 @@ export interface MaintenanceRequest {
   operationalImpact: number;
   urgency: number;
   priority: string;
-  status: string;
+  status:
+    | "PENDING"
+    | "APPROVED"
+    | "REJECTED"
+    | "ASSIGNED"
+    | "IN_PROGRESS"
+    | "COMPLETED"
+    | "CANCELLED";
+
+  statusReason?: string | null;
 
   createdAt: string;
   updatedAt: string;
@@ -48,6 +59,8 @@ export interface MaintenanceRequest {
 
 export interface CreateMaintenanceRequestData {
   assetId?: number;
+  locationType: "PRIVATE_UNIT" | "SHARED_FACILITY";
+  locationDescription: string;
   category: string;
   description: string;
   imageUrl?: string;
@@ -63,7 +76,15 @@ export interface UpdateMaintenanceRequestData {
   severity?: string;
   operationalImpact?: number;
   urgency?: number;
-  status?: string;
+  status?:
+    | "PENDING"
+    | "APPROVED"
+    | "REJECTED"
+    | "ASSIGNED"
+    | "IN_PROGRESS"
+    | "COMPLETED"
+    | "CANCELLED";
+  statusReason?: string;
 }
 
 export const getMaintenanceRequests = async (): Promise<
@@ -74,14 +95,14 @@ export const getMaintenanceRequests = async (): Promise<
 };
 
 export const getMaintenanceRequestById = async (
-  id: number
+  id: number,
 ): Promise<MaintenanceRequest> => {
   const response = await api.get(`/maintenance-requests/${id}`);
   return response.data.request;
 };
 
 export const createMaintenanceRequest = async (
-  data: CreateMaintenanceRequestData
+  data: CreateMaintenanceRequestData,
 ): Promise<MaintenanceRequest> => {
   const response = await api.post("/maintenance-requests", data);
   return response.data.request;
@@ -89,12 +110,9 @@ export const createMaintenanceRequest = async (
 
 export const updateMaintenanceRequest = async (
   id: number,
-  data: UpdateMaintenanceRequestData
+  data: UpdateMaintenanceRequestData,
 ): Promise<MaintenanceRequest> => {
-  const response = await api.put(
-    `/maintenance-requests/${id}`,
-    data
-  );
+  const response = await api.put(`/maintenance-requests/${id}`, data);
 
   return response.data.request;
 };

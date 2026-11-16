@@ -17,18 +17,41 @@ import PreventiveMaintenance from "./pages/PreventiveMaintenance";
 import Reports from "./pages/Reports";
 import MaintenanceHistory from "./pages/MaintenanceHistory";
 import AppLayout from "./components/AppLayout";
+import ResidentRegister from "./pages/ResidentRegister";
+import ResidentRequests from "./pages/ResidentRequests";
+import ResidentDashboard from "./pages/ResidentDashboard";
+import MyRequests from "./pages/MyRequests";
 
 export const AUTH_CHANGED_EVENT = "auth-changed";
 
-// Read the expiry timestamp from the JWT payload.
-// This decodes the payload but does not verify the signature.
+type UserRole =
+  | "ADMIN"
+  | "FACILITY_MANAGER"
+  | "TECHNICIAN"
+  | "FACILITY_USER";
+
+interface StoredUser {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  status: string;
+}
+
+function getStoredUser(): StoredUser | null {
+  try {
+    const storedUser = localStorage.getItem("user");
+    return storedUser ? JSON.parse(storedUser) : null;
+  } catch {
+    return null;
+  }
+}
+
 function getTokenExpiry(token: string): number | null {
   try {
     const parts = token.split(".");
 
-    if (parts.length !== 3) {
-      return null;
-    }
+    if (parts.length !== 3) return null;
 
     const payload = parts[1]
       .replace(/-/g, "+")
@@ -39,9 +62,7 @@ function getTokenExpiry(token: string): number | null {
       "="
     );
 
-    const decodedPayload = JSON.parse(
-      atob(paddedPayload)
-    );
+    const decodedPayload = JSON.parse(atob(paddedPayload));
 
     if (
       typeof decodedPayload.exp !== "number" ||
@@ -56,12 +77,43 @@ function getTokenExpiry(token: string): number | null {
   }
 }
 
+function RoleRoute({
+  allowedRoles,
+  children,
+}: {
+  allowedRoles: UserRole[];
+  children: React.ReactNode;
+}) {
+  const user = getStoredUser();
+
+  if (!user || !allowedRoles.includes(user.role)) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function ResidentPortalPlaceholder() {
+  return (
+    <div className="min-h-screen p-6">
+      <div className="mx-auto max-w-4xl rounded-xl border border-slate-700 bg-slate-900 p-8">
+        <h2 className="text-2xl font-bold text-white">
+          Welcome to the Resident Portal
+        </h2>
+        <p className="mt-3 text-slate-300">
+          Your resident account is active. The maintenance
+          request and tracking features are being prepared.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [token, setToken] = useState(
     () => localStorage.getItem("token")
   );
 
-  // Keep React's authentication state synchronised.
   useEffect(() => {
     const syncToken = () => {
       setToken(localStorage.getItem("token"));
@@ -71,34 +123,23 @@ function App() {
     window.addEventListener("storage", syncToken);
 
     return () => {
-      window.removeEventListener(
-        AUTH_CHANGED_EVENT,
-        syncToken
-      );
+      window.removeEventListener(AUTH_CHANGED_EVENT, syncToken);
       window.removeEventListener("storage", syncToken);
     };
   }, []);
 
-  // Detect JWT expiry, including while the user is idle.
   useEffect(() => {
-    if (!token) {
-      return;
-    }
+    if (!token) return;
 
     const expiryTime = getTokenExpiry(token);
 
-    // If the token has no readable expiry claim, leave
-    // authentication validation to the backend.
-    if (expiryTime === null) {
-      return;
-    }
+    if (expiryTime === null) return;
 
     const checkExpiry = () => {
       if (Date.now() >= expiryTime) {
-        // Do not clear a newer token that may have replaced
-        // the token this effect was monitoring.
         if (localStorage.getItem("token") === token) {
           localStorage.removeItem("token");
+          localStorage.removeItem("user");
 
           window.dispatchEvent(
             new Event(AUTH_CHANGED_EVENT)
@@ -107,73 +148,166 @@ function App() {
       }
     };
 
-    // Check immediately, then periodically.
     checkExpiry();
 
-    const intervalId = window.setInterval(
-      checkExpiry,
-      15_000
-    );
+    const intervalId = window.setInterval(checkExpiry, 15000);
 
-    // Also check promptly when the user returns to the tab.
     window.addEventListener("focus", checkExpiry);
-
-    document.addEventListener(
-      "visibilitychange",
-      checkExpiry
-    );
+    document.addEventListener("visibilitychange", checkExpiry);
 
     return () => {
       window.clearInterval(intervalId);
       window.removeEventListener("focus", checkExpiry);
-
-      document.removeEventListener(
-        "visibilitychange",
-        checkExpiry
-      );
+      document.removeEventListener("visibilitychange", checkExpiry);
     };
   }, [token]);
+
+  const user = getStoredUser();
+
+  const managementRoles: UserRole[] = [
+    "ADMIN",
+    "FACILITY_MANAGER",
+  ];
+
+  const technicianRoles: UserRole[] = ["TECHNICIAN"];
+  const residentRoles: UserRole[] = ["FACILITY_USER"];
+
+  const defaultRoute =
+    user?.role === "FACILITY_USER"
+      ? "/resident-portal"
+      : user?.role === "TECHNICIAN"
+        ? "/work-orders"
+        : "/dashboard";
 
   return (
     <BrowserRouter>
       {!token ? (
-        <Login />
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<ResidentRegister />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      ) : !user ? (
+        <Navigate to="/login" replace />
       ) : (
         <AppLayout>
-        <Routes>
-          <Route
-            path="/"
-            element={<Navigate to="/dashboard" replace />}
-          />
+          <Routes>
+            <Route
+              path="/"
+              element={<Navigate to={defaultRoute} replace />}
+            />
 
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/facilities" element={<Facilities />} />
-          <Route path="/assets" element={<Assets />} />
+            {/* ADMIN AND FACILITY MANAGER */}
+            <Route
+              path="/dashboard"
+              element={
+                <RoleRoute allowedRoles={managementRoles}>
+                  <Dashboard />
+                </RoleRoute>
+              }
+            />
 
-          <Route
-            path="/maintenance-requests"
-            element={<MaintenanceRequests />}
-          />
+            <Route
+              path="/facilities"
+              element={
+                <RoleRoute allowedRoles={managementRoles}>
+                  <Facilities />
+                </RoleRoute>
+              }
+            />
 
-          <Route path="/work-orders" element={<WorkOrders />} />
+            <Route
+              path="/assets"
+              element={
+                <RoleRoute allowedRoles={managementRoles}>
+                  <Assets />
+                </RoleRoute>
+              }
+            />
 
-          <Route
-            path="/preventive-maintenance"
-            element={<PreventiveMaintenance />}
-          />
+            <Route
+              path="/maintenance-requests"
+              element={
+                <RoleRoute allowedRoles={managementRoles}>
+                  <MaintenanceRequests />
+                </RoleRoute>
+              }
+            />
 
-          <Route path="/reports" element={<Reports />} />
+            <Route
+              path="/preventive-maintenance"
+              element={
+                <RoleRoute allowedRoles={managementRoles}>
+                  <PreventiveMaintenance />
+                </RoleRoute>
+              }
+            />
 
-          <Route
-            path="/maintenance-history"
-            element={<MaintenanceHistory />}
-          />
+            <Route
+              path="/reports"
+              element={
+                <RoleRoute allowedRoles={managementRoles}>
+                  <Reports />
+                </RoleRoute>
+              }
+            />
 
-          <Route
-            path="*"
-            element={<Navigate to="/dashboard" replace />}
-          />
-        </Routes>
+            {/* MANAGEMENT AND TECHNICIANS */}
+            <Route
+              path="/work-orders"
+              element={
+                <RoleRoute
+                  allowedRoles={[...managementRoles, ...technicianRoles]}
+                >
+                  <WorkOrders />
+                </RoleRoute>
+              }
+            />
+
+            <Route
+              path="/maintenance-history"
+              element={
+                <RoleRoute
+                  allowedRoles={[...managementRoles, ...technicianRoles]}
+                >
+                  <MaintenanceHistory />
+                </RoleRoute>
+              }
+            />
+
+            {/* RESIDENTS */}
+            <Route
+              path="/resident-portal"
+              element={
+                <RoleRoute allowedRoles={residentRoles}>
+                  <ResidentDashboard />
+                </RoleRoute>
+              }
+            />
+
+            <Route
+              path="/submit-request"
+              element={
+                <RoleRoute allowedRoles={residentRoles}>
+                  <ResidentRequests />
+                </RoleRoute>
+              }
+            />
+
+            <Route
+              path="/my-requests"
+              element={
+                <RoleRoute allowedRoles={residentRoles}>
+                  <MyRequests />
+                </RoleRoute>
+              }
+            />
+
+            <Route
+              path="*"
+              element={<Navigate to={defaultRoute} replace />}
+            />
+          </Routes>
         </AppLayout>
       )}
     </BrowserRouter>

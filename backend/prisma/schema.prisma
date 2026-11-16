@@ -16,8 +16,10 @@ enum UserRole {
 }
 
 enum UserStatus {
+  PENDING
   ACTIVE
   INACTIVE
+  REJECTED
 }
 
 enum AssetCondition {
@@ -39,6 +41,13 @@ enum MaintenanceCategory {
   OTHER
 }
 
+
+enum MaintenanceLocationType {
+  PRIVATE_UNIT
+  SHARED_FACILITY
+}
+
+
 enum MaintenanceSeverity {
   LOW
   MEDIUM
@@ -56,6 +65,7 @@ enum MaintenancePriority {
 enum MaintenanceStatus {
   PENDING
   APPROVED
+  REJECTED
   ASSIGNED
   IN_PROGRESS
   COMPLETED
@@ -90,6 +100,7 @@ model User {
   email     String     @unique
   password  String
   phone     String?
+  address   String?
   role      UserRole   @default(FACILITY_USER)
   status    UserStatus @default(ACTIVE)
   createdAt DateTime   @default(now())
@@ -137,12 +148,17 @@ model MaintenanceRequest {
   requestNumber     String              @unique
   userId            Int
   assetId           Int?
+  
+  locationType      MaintenanceLocationType?
+  locationDescription String?
+
   category          MaintenanceCategory
   description       String
   imageUrl          String?
   severity          MaintenanceSeverity
   priority          MaintenancePriority @default(MEDIUM)
   status            MaintenanceStatus   @default(PENDING)
+  statusReason      String?
   operationalImpact Int                 @default(1)
   urgency           Int                 @default(1)
   createdAt         DateTime            @default(now())
@@ -178,19 +194,21 @@ model WorkOrder {
   maintenanceHistory MaintenanceHistory?
 }
 
+
 model MaintenanceHistory {
   id              Int      @id @default(autoincrement())
-  assetId         Int
+  assetId         Int?
   workOrderId     Int      @unique
   description     String
   maintenanceDate DateTime @default(now())
   cost            Decimal? @db.Decimal(12, 2)
-  remarks         String?
-  createdAt       DateTime @default(now())
+  remarks          String?
+  createdAt        DateTime @default(now())
 
-  asset     Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  asset     Asset?    @relation(fields: [assetId], references: [id], onDelete: SetNull)
   workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
 }
+
 
 model PreventiveMaintenance {
   id            Int                         @id @default(autoincrement())

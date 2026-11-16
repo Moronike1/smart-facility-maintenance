@@ -46,3 +46,152 @@ export const getTechnicians = async (
     });
   }
 };
+
+
+export const getPendingResidents = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const residents = await prisma.user.findMany({
+      where: {
+        role: "FACILITY_USER",
+        status: "PENDING",
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        address: true,
+        role: true,
+        status: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+    });
+
+    return res.status(200).json({
+      message: "Pending resident registrations retrieved successfully",
+      count: residents.length,
+      residents,
+    });
+  } catch (error) {
+    console.error("Get pending residents error:", error);
+
+    return res.status(500).json({
+      message: "An error occurred while retrieving pending residents",
+    });
+  }
+};
+
+export const approveResident = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        message: "Invalid resident ID",
+      });
+    }
+
+    const resident = await prisma.user.findFirst({
+      where: {
+        id,
+        role: "FACILITY_USER",
+        status: "PENDING",
+      },
+    });
+
+    if (!resident) {
+      return res.status(404).json({
+        message: "Pending resident registration not found",
+      });
+    }
+
+    const approvedResident = await prisma.user.update({
+      where: { id },
+      data: { status: "ACTIVE" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        address: true,
+        role: true,
+        status: true,
+      },
+    });
+
+    return res.status(200).json({
+      message: "Resident account approved successfully",
+      resident: approvedResident,
+    });
+  } catch (error) {
+    console.error("Approve resident error:", error);
+
+    return res.status(500).json({
+      message: "An error occurred while approving the resident",
+    });
+  }
+};
+
+export const rejectResident = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        message: "Invalid resident ID",
+      });
+    }
+
+    const resident = await prisma.user.findFirst({
+      where: {
+        id,
+        role: "FACILITY_USER",
+        status: "PENDING",
+      },
+    });
+
+    if (!resident) {
+      return res.status(404).json({
+        message: "Pending resident registration not found",
+      });
+    }
+
+    const rejectedResident = await prisma.user.update({
+      where: { id },
+      data: { status: "REJECTED" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        address: true,
+        role: true,
+        status: true,
+      },
+    });
+
+    return res.status(200).json({
+      message: "Resident registration rejected successfully",
+      resident: rejectedResident,
+    });
+  } catch (error) {
+    console.error("Reject resident error:", error);
+
+    return res.status(500).json({
+      message: "An error occurred while rejecting the resident",
+    });
+  }
+};
+

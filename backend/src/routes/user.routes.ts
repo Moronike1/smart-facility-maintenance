@@ -3,6 +3,7 @@ import { Router } from "express";
 import {
   getTechnicians,
   getPendingResidents,
+  getResidentsByStatus,
   approveResident,
   rejectResident,
 } from "../controllers/user.controller";
@@ -25,6 +26,14 @@ router.get(
   authenticate,
   authorize("ADMIN", "FACILITY_MANAGER"),
   getPendingResidents
+);
+
+// Retrieve residents by account status
+router.get(
+  "/residents",
+  authenticate,
+  authorize("ADMIN", "FACILITY_MANAGER"),
+  getResidentsByStatus
 );
 
 // Approve a resident registration

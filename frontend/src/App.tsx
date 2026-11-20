@@ -21,6 +21,7 @@ import ResidentRegister from "./pages/ResidentRegister";
 import ResidentRequests from "./pages/ResidentRequests";
 import ResidentDashboard from "./pages/ResidentDashboard";
 import MyRequests from "./pages/MyRequests";
+import ResidentApprovals from "./pages/ResidentApprovals";
 
 export const AUTH_CHANGED_EVENT = "auth-changed";
 
@@ -203,6 +204,15 @@ function App() {
               element={
                 <RoleRoute allowedRoles={managementRoles}>
                   <Dashboard />
+                </RoleRoute>
+              }
+            />
+
+            <Route
+              path="/resident-approvals"
+              element={
+                <RoleRoute allowedRoles={managementRoles}>
+                  <ResidentApprovals />
                 </RoleRoute>
               }
             />

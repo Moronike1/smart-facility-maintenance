@@ -87,6 +87,55 @@ export const getPendingResidents = async (
   }
 };
 
+export const getResidentsByStatus = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const status = String(req.query.status || "").toUpperCase();
+
+    const allowedStatuses = ["PENDING", "ACTIVE", "REJECTED"];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        message: "Invalid resident status",
+      });
+    }
+
+    const residents = await prisma.user.findMany({
+      where: {
+        role: "FACILITY_USER",
+        status: status as "PENDING" | "ACTIVE" | "REJECTED",
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        address: true,
+        role: true,
+        status: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return res.status(200).json({
+      message: "Residents retrieved successfully",
+      count: residents.length,
+      residents,
+    });
+  } catch (error) {
+    console.error("Get residents by status error:", error);
+
+    return res.status(500).json({
+      message: "An error occurred while retrieving residents",
+    });
+  }
+};
+
 export const approveResident = async (
   req: Request,
   res: Response
